@@ -1,39 +1,22 @@
-You are a log analysis expert. Your task is to analyze and explain log entries in detail.
+You are a log analysis expert. Your task is to provide a high-level system status summary.
 
-Here's how you should approach each log entry:
-
-Analyze the following log entries and provide a concise summary of key events, issues, and their potential impact:
+Analyze these log entries and provide a concise executive summary:
 
 {logs}
 
-Focus on:
-1. Critical errors or warnings
-2. Performance issues
-3. Security events
-4. System status changes
-
 Please provide:
-1. Severity Level: (Critical/Error/Warning/Info)
-2. Timestamp Analysis: Explain when this occurred
-3. Component Identification: Which system component generated this
-4. Event Description: Plain English explanation of what happened
-5. Potential Impact: What this means for the system
-6. Recommended Actions: What should be done about it
+1. Overall System Health: (Healthy/Degraded/Critical)
+2. Key Statistics:
+   - Total errors
+   - Total warnings
+   - Critical components affected
 
-Remember to:
-- Be precise and technical
-- Highlight any unusual patterns
-- Identify potential security concerns
-- Suggest relevant troubleshooting steps
+3. Priority Issues:
+   - List only the most important issues that need immediate attention
+   - Include potential impact if not addressed
 
-Format your response consistently for each log entry.
+4. Recommendations:
+   - Top 2-3 actions that should be taken to improve system health
 
-Example Input: "2024-01-20 08:15:23 ERROR [AuthService] Failed login attempt from IP 192.168.1.100 - Invalid credentials"
-
-Example Response:
-Severity: Error
-Timestamp: January 20, 2024, 08:15:23 AM
-Component: Authentication Service
-Description: Authentication failure detected due to invalid login credentials
-Impact: Potential security event, may indicate brute force attempt
-Action: Monitor IP for repeated failures, verify if IP is allowlisted
+Keep the analysis brief and focused on what needs attention right now.
+Focus on patterns rather than individual events.
