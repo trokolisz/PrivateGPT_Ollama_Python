@@ -1,114 +1,139 @@
 import json
+import logging
 import pathlib
 import time
+from dataclasses import dataclass
+from typing import List, Optional
 
 import httpx
 import ollama
 import os
 
-
-OLLAMA_CONNECTION_STRING = os.environ.get(
-    "OLLAMA_CONNECTION_STRING", "http://localhost:11434"
-    )
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
-
-PROMPT_TEMPLATE_PATH = os.environ.get("PROMPT_TEMPLATE_PATH", "prompt.txt")
-
-
-SAMPLE_DESCRIPTION = "Generate a description based on logs"
-
+# Sample logs for testing
 SAMPLE_LOGS = [
-    "2024-01-15 08:30:12 INFO: Application startup complete",
-    "2024-01-15 08:32:45 WARNING: High memory usage detected (85%)",
-    "2024-01-15 08:35:23 ERROR: Database connection timeout",
-    "2024-01-15 08:36:01 INFO: User authentication successful: user_id=12345",
-    "2024-01-15 08:40:55 DEBUG: Cache refresh completed in 1.2s",
-    "2024-01-15 08:41:03 ERROR: Failed to process payment transaction: TX_ID_789",
-    "2024-01-15 08:45:30 INFO: Scheduled backup started",
-    "2024-01-15 08:46:15 WARNING: API rate limit approaching threshold"
+    "2024-01-20 10:15:23 INFO Server started successfully",
+    "2024-01-20 10:15:24 ERROR Database connection failed",
+    "2024-01-20 10:15:25 WARNING High memory usage detected"
 ]
 
-def wait_for_ollama(ollama_client: ollama.Client):
-    print("Connecting to Ollama server...")
-    tries = 10
-    while tries > 0:
-        try:
-            ollama_client.ps()
-            print("Successfully connected to Ollama server")
-            break
-        except httpx.RequestError:
-            print(f"Waiting for Ollama server... {tries} attempts remaining")
-            time.sleep(1)
-            tries -= 1
-    if tries == 0:
-        raise RuntimeError("Could not connect to OLLAMA")
-    
-def download_model(ollama_client: ollama.Client, model: str):
-    print(f"\nChecking for model {model}...")
-    models_list = ollama_client.list()
-    print("Available models: ", models_list)
-    existing_models = []
-    if model in models_list:
-        existing_models = [model_info.get("name", "") for model_info in models_list["models"]]
-    if model not in existing_models:
-        print(f"Downloading model {model}... This might take a while...")
-        ollama_client.pull(model)
-        print(f"Model {model} successfully downloaded")
-    else:
-        print(f"Model {model} already exists, skipping download")
-    
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-def read_prompt_template(template_path: str) -> str:
-    try:
-        with open(template_path, "r") as f:
-            return f.read()
-    except FileNotFoundError:
-        raise RuntimeError(f"Prompt template file not found: {template_path}")
-
-def generate_log_description(
-    ollama_client: ollama.Client,
-    model: str,
-    logs: list[str],
-    prompt_template: str
-) -> str:
-    try:
-        print("\nFormatting logs and preparing prompt...")
-        formatted_logs = "\n".join(logs)
-        prompt = prompt_template.format(logs=formatted_logs)
-        
-        print("Generating description using Ollama... Please wait...")
-        response = ollama_client.generate(
-            model=model,
-            prompt=prompt,
-            stream=False
+@dataclass
+class Config:
+    """Configuration for the log analysis system."""
+    connection_string: str
+    model_name: str
+    prompt_template_path: str
+    timeout: int = 30
+    max_retries: int = 3
+    
+    @classmethod
+    def from_env(cls) -> 'Config':
+        """Create configuration from environment variables."""
+        return cls(
+            connection_string=os.environ.get("OLLAMA_CONNECTION_STRING", "http://localhost:11434"),
+            model_name=os.environ.get("OLLAMA_MODEL", "llama3.1:8b"),
+            prompt_template_path=os.environ.get("PROMPT_TEMPLATE_PATH", "prompt.txt"),
+            timeout=int(os.environ.get("OLLAMA_TIMEOUT", "30")),
+            max_retries=int(os.environ.get("OLLAMA_MAX_RETRIES", "3"))
         )
-        print("Description generated successfully")
-        
-        return response['response']
-    except KeyError as e:
-        raise RuntimeError(f"Invalid prompt template: missing placeholder {e}")
+
+class LogAnalyzer:
+    """Handles log analysis using Ollama models."""
+    
+    def __init__(self, config: Config):
+        self.config = config
+        self.client = ollama.Client(host=config.connection_string)
+        self.prompt_template = self._load_prompt_template()
+    
+    def _load_prompt_template(self) -> str:
+        """Load and validate the prompt template."""
+        try:
+            with open(self.config.prompt_template_path, "r") as f:
+                template = f.read()
+            # Validate template has required placeholder
+            template.format(logs="test")
+            return template
+        except FileNotFoundError:
+            raise RuntimeError(f"Prompt template not found: {self.config.prompt_template_path}")
+        except KeyError:
+            raise RuntimeError("Invalid prompt template: missing {logs} placeholder")
+    
+    def wait_for_server(self) -> None:
+        """Wait for Ollama server to become available."""
+        logger.info("Connecting to Ollama server...")
+        for attempt in range(self.config.max_retries):
+            try:
+                self.client.ps()
+                logger.info("Successfully connected to Ollama server")
+                return
+            except httpx.RequestError:
+                logger.warning(f"Connection attempt {attempt + 1}/{self.config.max_retries} failed")
+                time.sleep(2 ** attempt)  # Exponential backoff
+        raise RuntimeError("Could not connect to Ollama server")
+    
+    def ensure_model_available(self) -> None:
+        """Ensure the required model is downloaded."""
+        logger.info(f"Checking for model {self.config.model_name}")
+        try:
+            models = self.client.list()
+            existing_models = [m.get("name", "") for m in models.get("models", [])]
+            
+            if self.config.model_name not in existing_models:
+                logger.info(f"Downloading model {self.config.model_name}")
+                self.client.pull(self.config.model_name)
+                logger.info("Model downloaded successfully")
+            else:
+                logger.info("Model already available")
+        except Exception as e:
+            raise RuntimeError(f"Failed to ensure model availability: {e}")
+    
+    def analyze_logs(self, logs: List[str]) -> str:
+        """Analyze logs using the Ollama model."""
+        try:
+            logger.info("Preparing log analysis")
+            formatted_logs = "\n".join(logs)
+            prompt = self.prompt_template.format(logs=formatted_logs)
+            
+            logger.info("Generating analysis")
+            response = self.client.generate(
+                model=self.config.model_name,
+                prompt=prompt,
+                stream=False
+            )
+            
+            return response['response']
+        except Exception as e:
+            raise RuntimeError(f"Failed to analyze logs: {e}")
 
 def main():
-    print("\n=== Log Analysis System Starting ===\n")
-    
-    ollama_client = ollama.Client(host=OLLAMA_CONNECTION_STRING)
-    wait_for_ollama(ollama_client)
-    download_model(ollama_client, OLLAMA_MODEL)
-    
-    print(f"\nReading prompt template from {PROMPT_TEMPLATE_PATH}...")
-    prompt_template = read_prompt_template(PROMPT_TEMPLATE_PATH)
-    print("Prompt template loaded successfully")
-    
-    description = generate_log_description(
-        ollama_client,
-        OLLAMA_MODEL,
-        SAMPLE_LOGS,
-        prompt_template
-    )
-    
-    print("\n=== Generated Log Analysis ===")
-    print(description)
-    print("\n=== Analysis Complete ===")
+    """Main entry point for the log analysis system."""
+    try:
+        logger.info("=== Log Analysis System Starting ===")
+        
+        # Initialize configuration and analyzer
+        config = Config.from_env()
+        analyzer = LogAnalyzer(config)
+        
+        # Prepare the system
+        analyzer.wait_for_server()
+        analyzer.ensure_model_available()
+        
+        # Analyze sample logs
+        description = analyzer.analyze_logs(SAMPLE_LOGS)
+        
+        logger.info("=== Analysis Results ===")
+        print(description)
+        logger.info("=== Analysis Complete ===")
+        
+    except Exception as e:
+        logger.error(f"Analysis failed: {e}")
+        raise
 
 if __name__ == "__main__":
     main()
