@@ -1,0 +1,14 @@
+[
+	{"timestamp": "2024-01-15 08:23:45", "level": "INFO", "message": "System initialization started"},
+	{"timestamp": "2024-01-15 08:23:46", "level": "DEBUG", "message": "Loading configuration from config.yml"},
+	{"timestamp": "2024-01-15 08:23:46", "level": "INFO", "message": "Database connection established"},
+	{"timestamp": "2024-01-15 08:23:47", "level": "WARNING", "message": "Cache directory not found, creating new one"},
+	{"timestamp": "2024-01-15 08:23:48", "level": "ERROR", "message": "Failed to load optional module 'analytics'"},
+	{"timestamp": "2024-01-15 08:23:49", "level": "INFO", "message": "User authentication service started"},
+	{"timestamp": "2024-01-15 08:23:50", "level": "DEBUG", "message": "Processing incoming requests"},
+	{"timestamp": "2024-01-15 08:23:51", "level": "INFO", "message": "Background task scheduler initialized"},
+	{"timestamp": "2024-01-15 08:23:52", "level": "ERROR", "message": "Unable to connect to remote API (timeout)"},
+	{"timestamp": "2024-01-15 08:23:53", "level": "INFO", "message": "Retrying connection in 5 seconds..."},
+	{"timestamp": "2024-01-15 08:23:58", "level": "SUCCESS", "message": "Remote API connection established"},
+	{"timestamp": "2024-01-15 08:23:59", "level": "INFO", "message": "System startup completed successfully"}
+]

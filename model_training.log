@@ -1,0 +1,23 @@
+2025-02-05 06:38:53,470 - INFO - Reading file: C:\Users\danic\Desktop\ollama_python\sample.txt
+2025-02-05 06:38:53,472 - INFO - Starting model training with tag: custom
+2025-02-05 06:38:53,491 - ERROR - model training failed: 404 Client Error: Not Found for url: http://localhost:11434/api/train
+2025-02-05 06:38:53,494 - ERROR - An error occurred during execution
+Traceback (most recent call last):
+  File "c:\Users\danic\Desktop\ollama_python\teach.py", line 41, in check_api_response
+    response.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\danic\Desktop\ollama_python\env\Lib\site-packages\requests\models.py", line 1024, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 404 Client Error: Not Found for url: http://localhost:11434/api/train
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\danic\Desktop\ollama_python\teach.py", line 131, in main
+    train_response = train_model(content)
+  File "c:\Users\danic\Desktop\ollama_python\teach.py", line 77, in train_model
+    result = check_api_response(response, "model training")
+  File "c:\Users\danic\Desktop\ollama_python\teach.py", line 45, in check_api_response
+    raise Exception(f"API {operation} failed: {str(e)}")
+Exception: API model training failed: 404 Client Error: Not Found for url: http://localhost:11434/api/train
+2025-02-05 06:38:53,496 - INFO - Session ended
